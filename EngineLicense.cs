@@ -123,6 +123,17 @@ public static class EngineLicense
     }
 
     /// <summary>
+    /// Check if a specific feature module is available under the current license.
+    /// Always returns true in AGPL mode (no validator configured).
+    /// </summary>
+    /// <param name="moduleName">Module name: "query", "export", "diagnose".</param>
+    public static bool HasModule(string moduleName)
+    {
+        if (_validator == null) return true; // AGPL mode — all features
+        return BuiltInLicenseValidator.HasModule(moduleName);
+    }
+
+    /// <summary>
     /// Compute a SHA256 hash of the engine assembly for tamper detection.
     /// Callers can include this in license validation requests to detect modified DLLs.
     /// </summary>

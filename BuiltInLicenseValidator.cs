@@ -6,6 +6,10 @@ using System.Text.Json.Serialization;
 namespace HospitalStats.QueryEngine;
 
 /// <summary>
+/// License information extracted from a valid license key.
+public record LicenseInfo(string LicensedTo, DateTime ExpiresAt, string Tier, string[] Modules);
+
+/// <summary>
 /// Built-in offline license validator using HMAC-SHA256 signed keys.
 /// No server / network required — the license key itself carries all
 /// validation data (licensee, expiry, tier) and is cryptographically signed.
@@ -18,6 +22,7 @@ namespace HospitalStats.QueryEngine;
 public static class BuiltInLicenseValidator
 {
     private static byte[]? _hmacKey;
+    internal static LicenseInfo? CurrentLicense { get; private set; }
 
     /// <summary>
     /// Set the HMAC signing key. Call once before any validation.
@@ -34,19 +39,19 @@ public static class BuiltInLicenseValidator
     /// <summary>
     /// Validates a license key offline. Returns (isValid, licensee, expiry, tier).
     /// </summary>
-    public static (bool IsValid, string? LicensedTo, DateTime? ExpiresAt, string? Tier, string? Error)
+    public static (bool IsValid, string? LicensedTo, DateTime? ExpiresAt, string? Tier, string[]? Modules, string? Error)
         Validate(string licenseKey)
     {
         if (_hmacKey == null)
-            return (false, null, null, null, "HMAC 签名密钥未设置。请先调用 BuiltInLicenseValidator.SetSigningKey()");
+            return (false, null, null, null, null, "HMAC 签名密钥未设置。请先调用 BuiltInLicenseValidator.SetSigningKey()");
 
         if (string.IsNullOrWhiteSpace(licenseKey))
-            return (false, null, null, null, "License Key 不能为空");
+            return (false, null, null, null, null, "License Key 不能为空");
 
         // 1. Parse format: <payload>.<signature>
         var parts = licenseKey.Trim().Split('.');
         if (parts.Length != 2)
-            return (false, null, null, null,
+            return (false, null, null, null, null,
                 "License Key 格式无效，应为 <payload>.<signature>");
 
         // 2. Decode Base64
@@ -58,7 +63,7 @@ public static class BuiltInLicenseValidator
         }
         catch (FormatException)
         {
-            return (false, null, null, null, "License Key Base64 解码失败");
+            return (false, null, null, null, null, "License Key Base64 解码失败");
         }
 
         // 3. Verify HMAC-SHA256 signature
@@ -66,7 +71,7 @@ public static class BuiltInLicenseValidator
         var computedSignature = hmac.ComputeHash(payloadBytes);
 
         if (!CryptographicOperations.FixedTimeEquals(computedSignature, expectedSignature))
-            return (false, null, null, null, "签名验证失败——License Key 可能被篡改");
+            return (false, null, null, null, null, "签名验证失败——License Key 可能被篡改");
 
         // 4. Parse JSON payload
         LicensePayload? payload;
@@ -77,19 +82,19 @@ public static class BuiltInLicenseValidator
         }
         catch (JsonException)
         {
-            return (false, null, null, null, "License 数据解析失败");
+            return (false, null, null, null, null, "License 数据解析失败");
         }
 
         if (payload == null)
-            return (false, null, null, null, "License 数据为空");
+            return (false, null, null, null, null, "License 数据为空");
 
         // 5. Check expiry
         if (payload.ExpiresAt <= DateTime.UtcNow)
-            return (false, payload.LicensedTo, payload.ExpiresAt, payload.Tier,
+            return (false, payload.LicensedTo, payload.ExpiresAt, payload.Tier, payload.Modules,
                 $"License 已过期（{payload.ExpiresAt:yyyy-MM-dd}）");
 
         // 6. Valid
-        return (true, payload.LicensedTo, payload.ExpiresAt, payload.Tier, null);
+        return (true, payload.LicensedTo, payload.ExpiresAt, payload.Tier, payload.Modules, null);
     }
 
     /// <summary>
@@ -97,7 +102,9 @@ public static class BuiltInLicenseValidator
     /// </summary>
     public static Task<bool> ValidateAsync(string licenseKey)
     {
-        var (isValid, _, _, _, _) = Validate(licenseKey);
+        var (isValid, licensedTo, expiresAt, tier, modules, _) = Validate(licenseKey);
+        if (isValid)
+            CurrentLicense = new LicenseInfo(licensedTo!, expiresAt!.Value, tier!, modules!);
         return Task.FromResult(isValid);
     }
 
@@ -111,6 +118,16 @@ public static class BuiltInLicenseValidator
     {
         SetSigningKey(hmacSigningKey);
         EngineLicense.Initialize(ValidateAsync, licenseKey);
+    }
+
+    /// <summary>
+    /// Check if the current license includes a specific feature module.
+    /// Always returns true when no validator is configured (AGPL mode).
+    /// </summary>
+    public static bool HasModule(string moduleName)
+    {
+        if (CurrentLicense == null) return true; // AGPL mode — all features
+        return CurrentLicense.Modules.Contains(moduleName, StringComparer.OrdinalIgnoreCase);
     }
 
     private class LicensePayload
