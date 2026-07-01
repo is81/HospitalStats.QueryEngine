@@ -17,10 +17,19 @@ namespace HospitalStats.QueryEngine;
 /// </summary>
 public static class BuiltInLicenseValidator
 {
-    // Default HMAC key. In production, override via EngineLicense.Initialize().
-    private const string DefaultHmacKey = "HospitalStats.QueryEngine.License/2026";
-    private static readonly byte[] _hmacKey = SHA256.HashData(
-        Encoding.UTF8.GetBytes(DefaultHmacKey));
+    private static byte[]? _hmacKey;
+
+    /// <summary>
+    /// Set the HMAC signing key. Call once before any validation.
+    /// The key must be kept secret — anyone with the key can generate valid licenses.
+    /// This library ships with NO default key. You must provide your own.
+    /// </summary>
+    public static void SetSigningKey(string hmacKey)
+    {
+        if (string.IsNullOrWhiteSpace(hmacKey))
+            throw new ArgumentException("HMAC key must not be empty");
+        _hmacKey = SHA256.HashData(Encoding.UTF8.GetBytes(hmacKey));
+    }
 
     /// <summary>
     /// Validates a license key offline. Returns (isValid, licensee, expiry, tier).
@@ -28,6 +37,9 @@ public static class BuiltInLicenseValidator
     public static (bool IsValid, string? LicensedTo, DateTime? ExpiresAt, string? Tier, string? Error)
         Validate(string licenseKey)
     {
+        if (_hmacKey == null)
+            return (false, null, null, null, "HMAC 签名密钥未设置。请先调用 BuiltInLicenseValidator.SetSigningKey()");
+
         if (string.IsNullOrWhiteSpace(licenseKey))
             return (false, null, null, null, "License Key 不能为空");
 
@@ -93,8 +105,11 @@ public static class BuiltInLicenseValidator
     /// Initialize the engine with the built-in offline validator.
     /// Call this once at startup instead of providing a custom validator.
     /// </summary>
-    public static void InitializeOffline(string licenseKey)
+    /// <param name="licenseKey">The signed license key.</param>
+    /// <param name="hmacSigningKey">The HMAC signing key. Must match the key used to generate licenses. Keep secret.</param>
+    public static void InitializeOffline(string licenseKey, string hmacSigningKey)
     {
+        SetSigningKey(hmacSigningKey);
         EngineLicense.Initialize(ValidateAsync, licenseKey);
     }
 

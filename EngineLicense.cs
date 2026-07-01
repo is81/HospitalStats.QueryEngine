@@ -48,9 +48,10 @@ public static class EngineLicense
     /// Generate license keys with the enterprise tools/GenerateLicense console app.
     /// </summary>
     /// <param name="licenseKey">The signed license key.</param>
-    public static void InitializeOffline(string licenseKey)
+    /// <param name="hmacSigningKey">The HMAC signing key. Must match the key used to generate licenses. Keep secret.</param>
+    public static void InitializeOffline(string licenseKey, string hmacSigningKey)
     {
-        BuiltInLicenseValidator.InitializeOffline(licenseKey);
+        BuiltInLicenseValidator.InitializeOffline(licenseKey, hmacSigningKey);
     }
 
     /// <summary>

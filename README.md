@@ -52,7 +52,7 @@ dotnet add package HospitalStats.QueryEngine
 
 ```csharp
 // 1. License 激活（商业用户）
-EngineLicense.InitializeOffline("your-license-key");
+EngineLicense.InitializeOffline("your-license-key", "your-hmac-secret");
 
 // 2. DI 注册
 services.AddSingleton<IQueryEngine, QueryEngine>();
@@ -70,7 +70,7 @@ var options = await engine.GetDistinctValuesAsync(new DistinctValuesRequest {
 });
 ```
 
-完整文档见 [`docs/查询引擎使用方法.md`](https://github.com/is81/HospitalStats/blob/master/docs/%E6%9F%A5%E8%AF%A2%E5%BC%95%E6%93%8E%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95.md)
+完整文档见 [`docs/查询引擎使用方法.md`](docs/查询引擎使用方法.md) · [English](docs/query-engine-usage.md)
 
 ## 筛选操作符
 
