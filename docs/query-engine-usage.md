@@ -375,23 +375,57 @@ UNION queries are also supported — the engine calls `SplitUnionBranches` and i
 
 ## 8. License Management
 
+### License Tiers
+
+| Tier | Price | Modules | Includes |
+|------|-------|---------|----------|
+| **Standard** | ¥5,000/instance/year | `query` | All query features, US7ASCII, ROWNUM, 12 operators |
+| **Advanced** | ¥12,000/instance/year | `query`, `export` | Everything in Standard + Excel export + priority support |
+
+### Per-Instance Licensing
+
+The license key is bound to specific Oracle instances. The engine validates the instance automatically at runtime. Use `*` for unlimited instances.
+
+```json
+{
+  "licensedTo": "XX Hospital IT Dept",
+  "tier": "full",
+  "instances": ["ORCL"],
+  "modules": ["query", "export"]
+}
+```
+
+If connecting to an unauthorized instance, the engine throws:
+```
+This license does not cover the database instance (HISDB).
+Authorized instances: ORCL. Contact is81@qq.com to extend.
+```
+
+AGPL mode skips all license checks.
+
+### Feature Checks
+
+```csharp
+// Runtime feature availability
+if (EngineLicense.HasModule("export"))
+    await engine.ExportExcelAsync(request);
+else
+    Console.WriteLine("License does not include export. Upgrade to Advanced.");
+
+// View license info
+var info = BuiltInLicenseValidator.CurrentLicense;
+Console.WriteLine($"Licensee: {info?.LicensedTo}, Expires: {info?.ExpiresAt:yyyy-MM-dd}");
+```
+
 ### Getting a License Key
 
-Commercial license keys are issued by the vendor (is81@qq.com). Each key contains:
-- Licensee name (licensedTo)
-- Issue date (issuedAt)
-- Expiry date (expiresAt)
-- Feature tier (tier)
-
-### Delivery
-
-The license key and HMAC signing secret are sent to the customer via email. Configure once in code:
+Commercial license keys are issued by the vendor (is81@qq.com). The key and HMAC signing secret are delivered via email. Configure once:
 
 ```csharp
 EngineLicense.InitializeOffline(licenseKey, hmacSecret);
 ```
 
-### Checking Status
+### License Status
 
 ```csharp
 if (EngineLicense.IsLicensed)
