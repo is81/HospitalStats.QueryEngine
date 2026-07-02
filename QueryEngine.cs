@@ -37,6 +37,7 @@ public class QueryEngine : IQueryEngine
     public async Task<QueryEngineResult> ExecuteAsync(QueryEngineRequest request, CancellationToken ct = default)
     {
         await EngineLicense.ValidateAsync();
+        EngineLicense.ValidateInstance(request.ConnectionString);
         var useHexEncoding = !string.IsNullOrEmpty(request.CharSetOverride);
 
         using var conn = new OracleConnection(request.ConnectionString);

@@ -7,7 +7,7 @@ namespace HospitalStats.QueryEngine;
 
 /// <summary>
 /// License information extracted from a valid license key.
-public record LicenseInfo(string LicensedTo, DateTime ExpiresAt, string Tier, string[] Modules);
+public record LicenseInfo(string LicensedTo, DateTime ExpiresAt, string Tier, string[] Modules, string[] Instances);
 
 /// <summary>
 /// Built-in offline license validator using HMAC-SHA256 signed keys.
@@ -39,14 +39,14 @@ public static class BuiltInLicenseValidator
     /// <summary>
     /// Validates a license key offline. Returns (isValid, licensee, expiry, tier).
     /// </summary>
-    public static (bool IsValid, string? LicensedTo, DateTime? ExpiresAt, string? Tier, string[]? Modules, string? Error)
+    public static (bool IsValid, string? LicensedTo, DateTime? ExpiresAt, string? Tier, string[]? Modules, string[]? Instances, string? Error)
         Validate(string licenseKey)
     {
         if (_hmacKey == null)
-            return (false, null, null, null, null, "HMAC 签名密钥未设置。请先调用 BuiltInLicenseValidator.SetSigningKey()");
+            return (false, null, null, null, null, null, "HMAC 签名密钥未设置。请先调用 BuiltInLicenseValidator.SetSigningKey()");
 
         if (string.IsNullOrWhiteSpace(licenseKey))
-            return (false, null, null, null, null, "License Key 不能为空");
+            return (false, null, null, null, null, null, "License Key 不能为空");
 
         // 1. Parse format: <payload>.<signature>
         var parts = licenseKey.Trim().Split('.');
@@ -63,7 +63,7 @@ public static class BuiltInLicenseValidator
         }
         catch (FormatException)
         {
-            return (false, null, null, null, null, "License Key Base64 解码失败");
+            return (false, null, null, null, null, null, "License Key Base64 解码失败");
         }
 
         // 3. Verify HMAC-SHA256 signature
@@ -71,7 +71,7 @@ public static class BuiltInLicenseValidator
         var computedSignature = hmac.ComputeHash(payloadBytes);
 
         if (!CryptographicOperations.FixedTimeEquals(computedSignature, expectedSignature))
-            return (false, null, null, null, null, "签名验证失败——License Key 可能被篡改");
+            return (false, null, null, null, null, null, "签名验证失败——License Key 可能被篡改");
 
         // 4. Parse JSON payload
         LicensePayload? payload;
@@ -82,19 +82,19 @@ public static class BuiltInLicenseValidator
         }
         catch (JsonException)
         {
-            return (false, null, null, null, null, "License 数据解析失败");
+            return (false, null, null, null, null, null, "License 数据解析失败");
         }
 
         if (payload == null)
-            return (false, null, null, null, null, "License 数据为空");
+            return (false, null, null, null, null, null, "License 数据为空");
 
         // 5. Check expiry
         if (payload.ExpiresAt <= DateTime.UtcNow)
-            return (false, payload.LicensedTo, payload.ExpiresAt, payload.Tier, payload.Modules,
+            return (false, payload.LicensedTo, payload.ExpiresAt, payload.Tier, payload.Modules, payload.Instances,
                 $"License 已过期（{payload.ExpiresAt:yyyy-MM-dd}）");
 
         // 6. Valid
-        return (true, payload.LicensedTo, payload.ExpiresAt, payload.Tier, payload.Modules, null);
+        return (true, payload.LicensedTo, payload.ExpiresAt, payload.Tier, payload.Modules, payload.Instances, null);
     }
 
     /// <summary>
@@ -102,9 +102,9 @@ public static class BuiltInLicenseValidator
     /// </summary>
     public static Task<bool> ValidateAsync(string licenseKey)
     {
-        var (isValid, licensedTo, expiresAt, tier, modules, _) = Validate(licenseKey);
+        var (isValid, licensedTo, expiresAt, tier, modules, instances, _) = Validate(licenseKey);
         if (isValid)
-            CurrentLicense = new LicenseInfo(licensedTo!, expiresAt!.Value, tier!, modules!);
+            CurrentLicense = new LicenseInfo(licensedTo!, expiresAt!.Value, tier!, modules!, instances!);
         return Task.FromResult(isValid);
     }
 
@@ -146,5 +146,8 @@ public static class BuiltInLicenseValidator
 
         [JsonPropertyName("modules")]
         public string[] Modules { get; set; } = [];
+
+        [JsonPropertyName("instances")]
+        public string[] Instances { get; set; } = [];
     }
 }
