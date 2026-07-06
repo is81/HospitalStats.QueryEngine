@@ -72,7 +72,7 @@ var options = await engine.GetDistinctValuesAsync(new DistinctValuesRequest {
 });
 ```
 
-Full documentation: [English](docs/query-engine-usage.md) · [中文](docs/查询引擎使用方法.md)
+Full documentation (Chinese): [`docs/查询引擎使用方法.md`](docs/查询引擎使用方法.md)
 
 ## Filter Operators
 

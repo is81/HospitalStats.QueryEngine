@@ -70,7 +70,7 @@ var options = await engine.GetDistinctValuesAsync(new DistinctValuesRequest {
 });
 ```
 
-完整文档见 [`docs/查询引擎使用方法.md`](docs/查询引擎使用方法.md) · [English](docs/query-engine-usage.md)
+完整文档见 [`docs/查询引擎使用方法.md`](docs/查询引擎使用方法.md)
 
 ## 筛选操作符
 
